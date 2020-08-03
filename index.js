@@ -163,19 +163,7 @@ async function genResp(parsed) {
     // Check is listed cookie exists and is valid
     if (sess.Item) {
       needAuth = false; 
-      flight.message = "Session Found Valid";
-      let rower = await getRower(sess.Item.user);
-      flight.caseid = sess.Item.user;
-      flight.cooks = parsed.cooks;
-      if(rower.Item){
-        flight.name = rower.Item.name; 
-        let car = await getCar(rower.Item.carID);
-        flight.car = getCarTable(car);
-      }
-      else {
-        flight.debug = "Case ID not in DDB";
-      }
-      flight.code = true;
+      flight = {...(await makePacket(sess.Item.user, parsed.cooks)), ...flight};
     }
     // otherwise return no cookie found 
     else {
@@ -206,20 +194,8 @@ async function genResp(parsed) {
       if (resp.includes("yes")) {
         // Query the rower ddb for the rower
         let caseid = resp.substring(4, resp.length-1);
-        let rower = await getRower(resp.substring(4, resp.length-1));
-        flight.caseid = caseid;
-        if(rower.Item){
-          flight.name = rower.Item.name; 
-          let car = await getCar(rower.Item.carID);
-          flight.car = getCarTable(car);
-        }
-        else {
-          flight.name = caseid;
-          flight.debug = "Case ID not in DDB";
-        }
-        flight.code = true;
         let cooks = createCook(18);
-        flight.cooks = cooks;
+        flight = {...(await makePacket(caseid, cooks)), ...flight};
         await addAccess(cooks, caseid);
       }
       else {
@@ -242,4 +218,25 @@ function getAllCars() {
   return ddb.scan({
         TableName: 'Cars',
     }).promise();
+}
+
+async function makePacket(caseid, cooks) {
+  let flight = {}
+  flight.message = "Session Found Valid";
+  let rower = await getRower(caseid);
+  flight.caseid = caseid;
+  flight.cooks = cooks;
+  if(rower.Item){
+    flight.name = rower.Item.name; 
+    flight.loc = rower.Item["location"]; 
+    flight.days = rower.Item["days"]; 
+    flight.random = rower.Item["random"]; 
+    let car = await getCar(rower.Item.carID);
+    flight.car = getCarTable(car);
+  }
+  else {
+    flight.debug = "Case ID not in DDB";
+  }
+  flight.code = true;
+  return flight;
 }
